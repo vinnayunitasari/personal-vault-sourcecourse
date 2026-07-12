@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @title Time-Locked Personal Vault
-/// @notice Personal vault yang mengunci ETH hingga waktu tertentu.
 contract PersonalVault {
     address public owner;
     uint256 public unlockTime;
 
     event Deposit(address indexed sender, uint256 amount);
-    event Withdrawal(address indexed owner, uint256 amount);
-    event LockExtended(uint256 previousUnlockTime, uint256 newUnlockTime);
+    event Withdrawal(uint256 amount, uint256 timestamp);
+    event LockExtended(uint256 newUnlockTime);
 
     error FundsLocked();
     error NotOwner();
     error InvalidUnlockTime();
 
-    constructor(uint256 _unlockTime) {
+    constructor(uint256 _unlockTime) payable {
         if (_unlockTime <= block.timestamp) {
             revert InvalidUnlockTime();
         }
@@ -32,8 +30,6 @@ contract PersonalVault {
     }
 
     function deposit() external payable {
-        require(msg.value > 0, "Must send ETH");
-
         emit Deposit(msg.sender, msg.value);
     }
 
@@ -43,12 +39,12 @@ contract PersonalVault {
         }
 
         uint256 amount = address(this).balance;
-        require(amount > 0, "No balance");
+        require(amount > 0);
 
-        (bool success, ) = payable(owner).call{value: amount}("");
-        require(success, "Transfer failed");
+        (bool success, ) = owner.call{value: amount}("");
+        require(success);
 
-        emit Withdrawal(owner, amount);
+        emit Withdrawal(amount, block.timestamp);
     }
 
     function extendLock(uint256 newTime) external onlyOwner {
@@ -56,9 +52,8 @@ contract PersonalVault {
             revert InvalidUnlockTime();
         }
 
-        uint256 previousUnlockTime = unlockTime;
         unlockTime = newTime;
 
-        emit LockExtended(previousUnlockTime, newTime);
+        emit LockExtended(newTime);
     }
 }
